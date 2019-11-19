@@ -41,8 +41,10 @@ import org.codehaus.groovy.ast.expr.Expression;
 import org.codehaus.groovy.ast.expr.MethodCallExpression;
 import org.codehaus.groovy.ast.expr.PropertyExpression;
 import org.codehaus.groovy.ast.expr.VariableExpression;
+import org.codehaus.groovy.ast.expr.ClosureExpression;
 import org.codehaus.groovy.ast.stmt.BlockStatement;
 import org.codehaus.groovy.ast.stmt.Statement;
+import org.codehaus.groovy.control.CompilationUnit;
 import org.eclipse.lsp4j.CompletionContext;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionItemKind;
@@ -65,6 +67,7 @@ import net.prominic.groovyls.util.GroovyLanguageServerUtils;
 
 public class CompletionProvider {
 	private ASTNodeVisitor ast;
+	private CompilationUnit compilationUnit;
 	private GroovyClassLoader classLoader;
 
 	public CompletionProvider(ASTNodeVisitor ast, GroovyClassLoader classLoader) {
@@ -100,6 +103,8 @@ public class CompletionProvider {
 			populateItemsFromMethodCallExpression((MethodCallExpression) parentNode, position, items);
 		} else if (offsetNode instanceof VariableExpression) {
 			populateItemsFromVariableExpression((VariableExpression) offsetNode, position, items);
+		} else if (offsetNode instanceof ClosureExpression) {
+			populateItemsFromClosureExpression((ClosureExpression) offsetNode, position, items);
 		} else if (offsetNode instanceof ImportNode) {
 			populateItemsFromImportNode((ImportNode) offsetNode, position, items);
 		} else if (offsetNode instanceof MethodNode) {
@@ -220,11 +225,28 @@ public class CompletionProvider {
 		populateClasses(constructorCallExpr, typeName, new HashSet<>(), items);
 	}
 
-	private void populateItemsFromVariableExpression(VariableExpression varExpr, Position position,
-			List<CompletionItem> items) {
+	private void populateItemsFromVariableExpression(VariableExpression varExpr, Position position, List<CompletionItem> items) {
 		Range varRange = GroovyLanguageServerUtils.astNodeToRange(varExpr);
 		String memberName = getMemberName(varExpr.getName(), varRange, position);
 		populateItemsFromScope(varExpr, memberName, items);
+		decorateLabels(items);
+	}
+
+	private void decorateLabels(List<CompletionItem> items) {
+		for(CompletionItem item : items){
+			if( "getMetaClass".equals(item.getLabel()) ||
+				"setMetaClass".equals(item.getLabel()) ||
+				"getProperty".equals(item.getLabel()) ||
+				"setProperty".equals(item.getLabel()) ||
+                "invokeMethod".equals(item.getLabel()) ||
+                "main".equals(item.getLabel()) ||
+                 "run".equals(item.getLabel()) ) {
+				item.setInsertText(item.getLabel());
+				item.setSortText("~" + item.getLabel());
+				item.setKind(CompletionItemKind.Interface);
+			}
+
+		}
 	}
 
 	private void populateItemsFromPropertiesAndFields(List<PropertyNode> properties, List<FieldNode> fields,
@@ -316,9 +338,10 @@ public class CompletionProvider {
 		ASTNode current = node;
 		while (current != null) {
 			if (current instanceof ClassNode) {
+				ClassNode enclosingClass = GroovyASTUtils.getEnclosingClass(node, ast);
 				ClassNode classNode = (ClassNode) current;
-				populateItemsFromPropertiesAndFields(classNode.getProperties(), classNode.getFields(), namePrefix,
-						existingNames, items);
+				populateItemsFromPropertiesAndFields(classNode.getProperties(), classNode.getFields(), namePrefix, existingNames, items);
+				delegateScriptContextToObject(enclosingClass, items, "org.apache.camel.k.loader.groovy.dsl.IntegrationConfiguration", existingNames);
 				populateItemsFromMethods(classNode.getMethods(), namePrefix, existingNames, items);
 			} else if (current instanceof MethodNode) {
 				MethodNode methodNode = (MethodNode) current;
@@ -330,6 +353,57 @@ public class CompletionProvider {
 			current = ast.getParent(current);
 		}
 		populateClasses(node, namePrefix, existingNames, items);
+	}
+
+	private void delegateScriptContextToObject(ClassNode enclosingClass, List<CompletionItem> items, String className, Set<String> existingNames) {
+		if(enclosingClass.getSuperClass().getName().equals("groovy.lang.Script")){
+			populateItemsFromMethods(extractMethodsFromClass(className), "", existingNames, items);
+		}
+	}
+
+	private List<MethodNode> extractMethodsFromClass(String className){
+		ClassLoader cl = this.compilationUnit.getClassLoader();
+		Class clazz = null;
+		try {
+			clazz = cl.loadClass(className);
+		} catch (ClassNotFoundException e) {
+			throw new RuntimeException(e);
+		}
+		ClassNode traitClassNode = new ClassNode(clazz);
+		return traitClassNode.getMethods()
+				.stream()
+				.filter(m -> !m.getName().startsWith("$"))
+				.collect(Collectors.toList());
+	}
+
+	private void populateItemsFromClosureExpression(ClosureExpression closExpr, Position position, List<CompletionItem> items) {
+		ASTNode parent = ast.getParent(ast.getParent(closExpr));
+		Set<String> existingNames = new HashSet<>();
+		if(parent instanceof MethodCallExpression){
+			MethodCallExpression methodExpression = (MethodCallExpression) parent;
+			String name =  methodExpression.getMethodAsString();
+			List<MethodNode> methodNodes = new ArrayList();
+
+			switch(name){
+				case "context":
+					methodNodes = extractMethodsFromClass("org.apache.camel.k.loader.groovy.dsl.ContextConfiguration");
+					break;
+				case "registry":
+					methodNodes = extractMethodsFromClass("org.apache.camel.k.loader.groovy.dsl.RegistryConfiguration");
+					break;
+				case "components":
+					methodNodes = extractMethodsFromClass("org.apache.camel.k.loader.groovy.dsl.ComponentsConfiguration");
+					break;
+				case "beans":
+					methodNodes = extractMethodsFromClass("org.apache.camel.k.loader.groovy.dsl.BeansConfiguration");
+					break;
+				case "rest":
+					methodNodes = extractMethodsFromClass("org.apache.camel.k.loader.groovy.dsl.RestConfiguration");
+					break;
+			}
+
+			populateItemsFromMethods(methodNodes, "", existingNames, items);
+		}
 	}
 
 	private void populateClasses(ASTNode offsetNode, String namePrefix, Set<String> existingNames,
@@ -438,5 +512,9 @@ public class CompletionProvider {
 		} catch (ClassGraphException e) {
 		}
 		return null;
+	}
+
+	public void setCompilationUnit(CompilationUnit unit) {
+		this.compilationUnit = unit;
 	}
 }

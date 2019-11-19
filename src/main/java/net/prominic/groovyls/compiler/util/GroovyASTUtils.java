@@ -45,6 +45,7 @@ import org.codehaus.groovy.ast.expr.MethodCallExpression;
 import org.codehaus.groovy.ast.expr.PropertyExpression;
 import org.codehaus.groovy.ast.expr.VariableExpression;
 import org.codehaus.groovy.ast.stmt.ExpressionStatement;
+import org.codehaus.groovy.transform.stc.StaticTypesMarker;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 
@@ -52,6 +53,18 @@ import net.prominic.groovyls.compiler.ast.ASTNodeVisitor;
 import net.prominic.groovyls.util.GroovyLanguageServerUtils;
 
 public class GroovyASTUtils {
+
+    public static ClassNode getEnclosingClass(ASTNode node, ASTNodeVisitor astVisitor) {
+        ASTNode current = node;
+        while (current != null) {
+            if (current instanceof ClassNode) {
+                return (ClassNode) current;
+            }
+            current = astVisitor.getParent(current);
+        }
+        return null;
+    }
+
     public static ASTNode getEnclosingNodeOfType(ASTNode offsetNode, Class<? extends ASTNode> nodeType,
             ASTNodeVisitor astVisitor) {
         ASTNode current = offsetNode;
@@ -240,6 +253,13 @@ public class GroovyASTUtils {
                     return enclosingClass;
                 }
             } else if (var.isDynamicTyped()) {
+                // If Static Type exists, use it
+                if (node.getMetaDataMap() != null) {
+                    Object inferred = node.getMetaDataMap().get(StaticTypesMarker.INFERRED_TYPE);
+                    if (inferred != null) {
+                        return (ClassNode) inferred;
+                    }
+                }
                 ASTNode defNode = GroovyASTUtils.getDefinition(node, false, astVisitor);
                 if (defNode instanceof Variable) {
                     Variable defVar = (Variable) defNode;

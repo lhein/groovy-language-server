@@ -29,10 +29,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.camel.lsp.groovy.CamelScriptCompilationCustomizer;
 import org.codehaus.groovy.control.CompilerConfiguration;
 import org.codehaus.groovy.control.SourceUnit;
+import org.codehaus.groovy.control.customizers.ImportCustomizer;
 
 import groovy.lang.GroovyClassLoader;
+import groovy.util.DelegatingScript;
 import net.prominic.groovyls.compiler.control.GroovyLSCompilationUnit;
 import net.prominic.groovyls.compiler.control.io.StringReaderSourceWithURI;
 import net.prominic.groovyls.util.FileContentsTracker;
@@ -104,11 +107,14 @@ public class CompilationUnitFactory implements ICompilationUnitFactory {
 	}
 
 	protected CompilerConfiguration getConfiguration() {
-		CompilerConfiguration config = new CompilerConfiguration();
+		CompilerConfiguration config = newCamelCompilerConfiguration();
 
 		List<String> classpathList = new ArrayList<>();
 		getClasspathList(classpathList);
 		config.setClasspathList(classpathList);
+
+		//addScriptBaseClass(config);
+		//addCompilationCustomizers(config);
 
 		return config;
 	}
@@ -187,5 +193,29 @@ public class CompilationUnitFactory implements ICompilationUnitFactory {
 				compilationUnit.getConfiguration(), compilationUnit.getClassLoader(),
 				compilationUnit.getErrorCollector());
 		compilationUnit.addSource(sourceUnit);
+	}
+
+	protected void addCompilationCustomizers(CompilerConfiguration config) {
+		config.addCompilationCustomizers(new CamelScriptCompilationCustomizer());
+	}
+
+	protected void addScriptBaseClass(CompilerConfiguration config) {
+		config.setScriptBaseClass(DelegatingScript.class.getName());
+	}
+
+	protected void addImportCustomizers(CompilerConfiguration config) {
+		ImportCustomizer customizer = new ImportCustomizer();
+		customizer.addStarImports("org.apache.camel.k.loader.groovy.dsl");
+		config.addCompilationCustomizers(customizer);
+	}
+
+	protected CompilerConfiguration newCamelCompilerConfiguration() {
+		CompilerConfiguration config = new CompilerConfiguration();
+
+		config.setDebug(true);
+		config.setVerbose(true);
+
+		addImportCustomizers(config);
+		return config;
 	}
 }

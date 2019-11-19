@@ -147,7 +147,7 @@ function startLanguageServer() {
           path.resolve(extensionContext.extensionPath, "bin", "groovy-language-server-all.jar")
         ];
         //uncomment to allow a debugger to attach to the language server
-        //args.unshift("-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005,quiet=y");
+        args.unshift("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005,quiet=y");
         let executable: Executable = {
           command: javaPath,
           args: args
