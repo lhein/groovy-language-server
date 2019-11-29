@@ -37,6 +37,7 @@ import org.codehaus.groovy.ast.MethodNode;
 import org.codehaus.groovy.ast.ModuleNode;
 import org.codehaus.groovy.ast.PropertyNode;
 import org.codehaus.groovy.ast.VariableScope;
+import org.codehaus.groovy.ast.expr.ClosureExpression;
 import org.codehaus.groovy.ast.expr.ConstructorCallExpression;
 import org.codehaus.groovy.ast.expr.Expression;
 import org.codehaus.groovy.ast.expr.MethodCallExpression;
@@ -104,6 +105,8 @@ public class CompletionProvider {
 			populateItemsFromMethodCallExpression((MethodCallExpression) parentNode, position, items);
 		} else if (offsetNode instanceof VariableExpression) {
 			populateItemsFromVariableExpression((VariableExpression) offsetNode, position, items);
+		} else if (parentNode instanceof ClosureExpression) {
+            populateItemsFromClosureExpression((ClosureExpression) parentNode, position, items);
 		} else if (offsetNode instanceof ImportNode) {
 			populateItemsFromImportNode((ImportNode) offsetNode, position, items);
 		} else if (offsetNode instanceof ClassNode) {
@@ -119,6 +122,109 @@ public class CompletionProvider {
 		}
 		return CompletableFuture.completedFuture(Either.forLeft(items));
 	}
+
+	private void delegateScriptContextToObject(ClassNode enclosingClass, List<CompletionItem> items, String className) {
+        if (enclosingClass.getSuperClass().getName().equals("groovy.lang.Script")) {
+            populateItemsFromMethods(extractMethodsFromClass(className), "", items);
+        }
+    }
+
+	private void populateItemsFromClosureExpression(ClosureExpression closExpr, Position position, List<CompletionItem> items) {
+        ASTNode parent = ast.getParent(ast.getParent(closExpr));
+        if (parent instanceof MethodCallExpression) {
+            MethodCallExpression methodExpression = (MethodCallExpression) parent;
+            String name = methodExpression.getMethodAsString();
+            List<MethodNode> methodNodes = new ArrayList<>();
+
+            switch (name) {
+				case "bean":
+                    methodNodes = extractMethodsFromClass("org.apache.camel.k.loader.groovy.dsl.BeanConfiguration");
+					break;
+				case "beans":
+                    methodNodes = extractMethodsFromClass("org.apache.camel.k.loader.groovy.dsl.BeansConfiguration");
+					break;	
+				case "camel":
+                    methodNodes = extractMethodsFromClass("org.apache.camel.k.loader.groovy.dsl.CamelConfiguration");
+                    break;
+				case "components":
+                    methodNodes = extractMethodsFromClass("org.apache.camel.k.loader.groovy.dsl.ComponentsConfiguration");
+					break;
+				case "dataformats":
+                    methodNodes = extractMethodsFromClass("org.apache.camel.k.loader.groovy.dsl.DataFormatsConfiguration");
+                    break;
+				case "integration":
+                    methodNodes = extractMethodsFromClass("org.apache.camel.k.loader.groovy.dsl.IntegrationConfiguration");
+                    break;
+				case "languages":
+                    methodNodes = extractMethodsFromClass("org.apache.camel.k.loader.groovy.dsl.LanguagesConfiguration");
+					break;
+				case "registry":
+                    methodNodes = extractMethodsFromClass("org.apache.camel.k.loader.groovy.dsl.RegistryConfiguration");
+                    break;
+                case "rest":
+                    methodNodes = extractMethodsFromClass("org.apache.camel.k.loader.groovy.dsl.RestConfiguration");
+					break;
+				case "restverb":
+                    methodNodes = extractMethodsFromClass("org.apache.camel.k.loader.groovy.dsl.RestVerbConfiguration");
+                    break;
+            }
+
+            populateItemsFromMethods(methodNodes, "", items);
+            decorateLabels(items);
+        }
+	}
+	
+	private void decorateLabels(List<CompletionItem> items) {
+        for (CompletionItem item : items) {
+            if ("getMetaClass".equals(item.getLabel()) ||
+                    "setMetaClass".equals(item.getLabel()) ||
+                    "getProperty".equals(item.getLabel()) ||
+                    "setProperty".equals(item.getLabel()) ||
+                    "invokeMethod".equals(item.getLabel()) ||
+                    "main".equals(item.getLabel()) ||
+                    "run".equals(item.getLabel())
+            ) {
+                item.setInsertText(item.getLabel());
+                item.setSortText("~" + item.getLabel());
+                item.setKind(CompletionItemKind.Interface);
+            }
+
+        }
+    }
+
+	private List<MethodNode> extractMethodsFromClass(String className) {
+        Class<?> clazz = null;
+        try {
+            clazz = classLoader.loadClass(className);
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+        ClassNode traitClassNode = new ClassNode(clazz);
+        return traitClassNode.getMethods()
+                .stream()
+                .filter(m -> !m.getName().startsWith("$"))
+                .collect(Collectors.toList());
+	}
+	
+	private void populateItemsFromMethods(List<MethodNode> methods, String memberNamePrefix,
+                                          List<CompletionItem> items) {
+        Set<String> foundMethods = new HashSet<>();
+        List<CompletionItem> methodItems = methods.stream().filter(method -> {
+            String methodName = method.getName();
+            //overloads can cause duplicates
+            if (methodName.startsWith(memberNamePrefix) && !foundMethods.contains(methodName)) {
+                foundMethods.add(methodName);
+                return true;
+            }
+            return false;
+        }).map(method -> {
+            CompletionItem item = new CompletionItem();
+            item.setLabel(method.getName());
+            item.setKind(GroovyLanguageServerUtils.astNodeToCompletionItemKind(method));
+            return item;
+        }).collect(Collectors.toList());
+        items.addAll(methodItems);
+    }
 
 	private void populateItemsFromPropertyExpression(PropertyExpression propExpr, Position position,
 			List<CompletionItem> items) {
@@ -248,6 +354,8 @@ public class CompletionProvider {
 			List<CompletionItem> items) {
 		Range varRange = GroovyLanguageServerUtils.astNodeToRange(varExpr);
 		String memberName = getMemberName(varExpr.getName(), varRange, position);
+		ClassNode enclosingClass = GroovyASTUtils.getEnclosingClass(varExpr, ast);
+		delegateScriptContextToObject(enclosingClass, items, "org.apache.camel.k.loader.groovy.dsl.IntegrationConfiguration");
 		populateItemsFromScope(varExpr, memberName, items);
 	}
 

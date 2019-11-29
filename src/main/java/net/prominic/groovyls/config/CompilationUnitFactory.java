@@ -31,6 +31,7 @@ import java.util.Set;
 
 import org.codehaus.groovy.control.CompilerConfiguration;
 import org.codehaus.groovy.control.SourceUnit;
+import org.codehaus.groovy.control.customizers.ImportCustomizer;
 
 import groovy.lang.GroovyClassLoader;
 import net.prominic.groovyls.compiler.control.GroovyLSCompilationUnit;
@@ -109,6 +110,15 @@ public class CompilationUnitFactory implements ICompilationUnitFactory {
 		List<String> classpathList = new ArrayList<>();
 		getClasspathList(classpathList);
 		config.setClasspathList(classpathList);
+
+		/** added for closure support */
+		ImportCustomizer customizer = new ImportCustomizer();
+		customizer.addImports("org.apache.camel.k.loader.groovy.dsl.IntegrationConfiguration");
+		customizer.addImports("org.apache.camel.model.RouteDefinition");
+		customizer.addStarImports("org.apache.camel");
+		customizer.addStarImports("org.apache.camel.model");
+		customizer.addStarImports("org.apache.camel.spi");
+		config.addCompilationCustomizers(customizer);
 
 		return config;
 	}

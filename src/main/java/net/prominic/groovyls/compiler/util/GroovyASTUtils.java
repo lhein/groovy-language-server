@@ -52,6 +52,18 @@ import net.prominic.groovyls.compiler.ast.ASTNodeVisitor;
 import net.prominic.groovyls.util.GroovyLanguageServerUtils;
 
 public class GroovyASTUtils {
+
+    public static ClassNode getEnclosingClass(ASTNode node, ASTNodeVisitor astVisitor) {
+        ASTNode current = node;
+        while (current != null) {
+            if (current instanceof ClassNode) {
+                return (ClassNode) current;
+            }
+            current = astVisitor.getParent(current);
+        }
+        return null;
+    }
+
     public static ASTNode getEnclosingNodeOfType(ASTNode offsetNode, Class<? extends ASTNode> nodeType,
             ASTNodeVisitor astVisitor) {
         ASTNode current = offsetNode;
