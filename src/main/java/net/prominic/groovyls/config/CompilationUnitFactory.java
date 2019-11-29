@@ -126,7 +126,7 @@ public class CompilationUnitFactory implements ICompilationUnitFactory {
 		if (getAdditionalImportPackagesList() != null) {
 			ImportCustomizer customizer = new ImportCustomizer();
 			for (String pkg : getAdditionalImportPackagesList()) {
-				if (Character.isUpperCase(pkg.charAt(pkg.lastIndexOf('.')+1))) {
+				if (containsClassName(pkg)) {
 					// class
 					customizer.addImports(pkg);
 				} else {
@@ -138,6 +138,10 @@ public class CompilationUnitFactory implements ICompilationUnitFactory {
 		}
 
 		return config;
+	}
+
+	private boolean containsClassName(String packageName) {
+		return Character.isUpperCase(packageName.charAt(packageName.lastIndexOf('.')+1));
 	}
 
 	protected void getClasspathList(List<String> result) {
