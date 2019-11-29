@@ -36,6 +36,10 @@ public interface ICompilationUnitFactory {
 
 	public void setAdditionalClasspathList(List<String> classpathList);
 
+	public List<String> getAdditionalImportPackagesList();
+
+	public void setAdditionalImportPackagesList(List<String> importPackagesList);
+
 	/**
 	 * Returns a compilation unit.
 	 */

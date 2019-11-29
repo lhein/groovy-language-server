@@ -177,12 +177,12 @@ public class CompletionProvider {
 	private void decorateLabels(List<CompletionItem> items) {
         for (CompletionItem item : items) {
             if ("getMetaClass".equals(item.getLabel()) ||
-                    "setMetaClass".equals(item.getLabel()) ||
-                    "getProperty".equals(item.getLabel()) ||
-                    "setProperty".equals(item.getLabel()) ||
-                    "invokeMethod".equals(item.getLabel()) ||
-                    "main".equals(item.getLabel()) ||
-                    "run".equals(item.getLabel())
+                "setMetaClass".equals(item.getLabel()) ||
+                "getProperty".equals(item.getLabel()) ||
+                "setProperty".equals(item.getLabel()) ||
+                "invokeMethod".equals(item.getLabel()) ||
+                "main".equals(item.getLabel()) ||
+                "run".equals(item.getLabel())
             ) {
                 item.setInsertText(item.getLabel());
                 item.setSortText("~" + item.getLabel());

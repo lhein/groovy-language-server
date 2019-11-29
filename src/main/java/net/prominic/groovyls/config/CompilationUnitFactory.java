@@ -43,6 +43,7 @@ public class CompilationUnitFactory implements ICompilationUnitFactory {
 
 	private GroovyLSCompilationUnit compilationUnit;
 	private List<String> additionalClasspathList;
+	private List<String> importPackagesList;
 
 	public CompilationUnitFactory() {
 	}
@@ -55,6 +56,16 @@ public class CompilationUnitFactory implements ICompilationUnitFactory {
 		this.additionalClasspathList = additionalClasspathList;
 		invalidateCompilationUnit();
 	}
+
+	public List<String> getAdditionalImportPackagesList() {
+		return importPackagesList;
+	}
+
+	public void setAdditionalImportPackagesList(List<String> importPackagesList) {
+		this.importPackagesList = importPackagesList;
+		invalidateCompilationUnit();
+	}
+
 
 	public void invalidateCompilationUnit() {
 		compilationUnit = null;
@@ -112,13 +123,19 @@ public class CompilationUnitFactory implements ICompilationUnitFactory {
 		config.setClasspathList(classpathList);
 
 		/** added for closure support */
-		ImportCustomizer customizer = new ImportCustomizer();
-		customizer.addImports("org.apache.camel.k.loader.groovy.dsl.IntegrationConfiguration");
-		customizer.addImports("org.apache.camel.model.RouteDefinition");
-		customizer.addStarImports("org.apache.camel");
-		customizer.addStarImports("org.apache.camel.model");
-		customizer.addStarImports("org.apache.camel.spi");
-		config.addCompilationCustomizers(customizer);
+		if (getAdditionalImportPackagesList() != null) {
+			ImportCustomizer customizer = new ImportCustomizer();
+			for (String pkg : getAdditionalImportPackagesList()) {
+				if (Character.isUpperCase(pkg.charAt(pkg.lastIndexOf('.')+1))) {
+					// class
+					customizer.addImports(pkg);
+				} else {
+					// package
+					customizer.addStarImports(pkg);
+				}
+			}
+			config.addCompilationCustomizers(customizer);
+		}
 
 		return config;
 	}

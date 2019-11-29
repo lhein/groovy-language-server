@@ -174,6 +174,7 @@ public class GroovyServices implements TextDocumentService, WorkspaceService, La
 		}
 		JsonObject settings = (JsonObject) params.getSettings();
 		this.updateClasspath(settings);
+		this.updateImports(settings);
 	}
 
 	private void updateClasspath(JsonObject settings) {
@@ -191,6 +192,29 @@ public class GroovyServices implements TextDocumentService, WorkspaceService, La
 
 		if (!classpathList.equals(compilationUnitFactory.getAdditionalClasspathList())) {
 			compilationUnitFactory.setAdditionalClasspathList(classpathList);
+
+			createOrUpdateCompilationUnit();
+			compile();
+			visitAST();
+			previousContext = null;
+		}
+	}
+
+	private void updateImports(JsonObject settings) {
+		List<String> importsList = new ArrayList<>();
+
+		if (settings.has("groovy") && settings.get("groovy").isJsonObject()) {
+			JsonObject groovy = settings.get("groovy").getAsJsonObject();
+			if (groovy.has("imports") && groovy.get("imports").isJsonArray()) {
+				JsonArray packages = groovy.get("imports").getAsJsonArray();
+				packages.forEach(element -> {
+					importsList.add(element.getAsString());
+				});
+			}
+		}
+
+		if (!importsList.equals(compilationUnitFactory.getAdditionalImportPackagesList())) {
+			compilationUnitFactory.setAdditionalImportPackagesList(importsList);
 
 			createOrUpdateCompilationUnit();
 			compile();

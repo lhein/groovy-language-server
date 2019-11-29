@@ -78,6 +78,14 @@
           "items": {
             "type": "string"
           }
+        },
+        "groovy.imports": {
+          "type": "array",
+          "default": null,
+          "description": "Specifies additional packages and classes to import by default.",
+          "items": {
+            "type": "string"
+          }
         }
       }
     }

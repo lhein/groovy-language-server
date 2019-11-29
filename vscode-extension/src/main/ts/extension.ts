@@ -38,7 +38,9 @@ let languageClient: LanguageClient;
 let javaPath: string;
 
 function onDidChangeConfiguration(event: vscode.ConfigurationChangeEvent) {
-  if (event.affectsConfiguration("groovy.java.home")) {
+  if (event.affectsConfiguration("groovy.java.home") || 
+      event.affectsConfiguration("groovy.classpath") ||
+      event.affectsConfiguration("groovy.imports")) {
     //we're going to try to kill the language server and then restart
     //it with the new settings
     restartLanguageServer();

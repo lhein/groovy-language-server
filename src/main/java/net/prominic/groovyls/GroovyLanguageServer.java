@@ -45,8 +45,7 @@ public class GroovyLanguageServer implements LanguageServer, LanguageClientAware
 
     public static void main(String[] args) {
         GroovyLanguageServer server = new GroovyLanguageServer();
-        Launcher<LanguageClient> launcher = Launcher.createLauncher(server, LanguageClient.class, System.in,
-                System.out);
+        Launcher<LanguageClient> launcher = Launcher.createLauncher(server, LanguageClient.class, System.in, System.out);
         server.connect(launcher.getRemoteProxy());
         launcher.startListening();
     }
