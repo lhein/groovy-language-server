@@ -576,4 +576,22 @@ class GroovyServicesCompletionTests {
 		}).collect(Collectors.toList());
 		Assertions.assertEquals(1, filteredItems.size());
 	}
+	
+	@Test
+	void testCompletionForCamelK() throws Exception {
+		Path filePath = srcRoot.resolve("Completion.groovy");
+		String uri = filePath.toUri().toString();
+		TextDocumentItem textDocumentItem = new TextDocumentItem(uri, LANGUAGE_GROOVY, 1, "");
+		services.didOpen(new DidOpenTextDocumentParams(textDocumentItem));
+		TextDocumentIdentifier textDocument = new TextDocumentIdentifier(uri);
+		Position position = new Position(0, 0);
+		Either<List<CompletionItem>, CompletionList> result = services
+				.completion(new CompletionParams(textDocument, position)).get();
+		Assertions.assertTrue(result.isLeft());
+		List<CompletionItem> items = result.getLeft();
+		List<CompletionItem> filteredItems = items.stream()
+				.filter(item -> "from".equals(item.getLabel()) && CompletionItemKind.Function.equals(item.getKind()))
+				.collect(Collectors.toList());
+		Assertions.assertEquals(1, filteredItems.size());
+	}
 }
