@@ -30,6 +30,7 @@ import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionItemKind;
 import org.eclipse.lsp4j.CompletionList;
 import org.eclipse.lsp4j.CompletionParams;
+import org.eclipse.lsp4j.DidChangeConfigurationParams;
 import org.eclipse.lsp4j.DidOpenTextDocumentParams;
 import org.eclipse.lsp4j.MessageActionItem;
 import org.eclipse.lsp4j.MessageParams;
@@ -44,6 +45,10 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 
 import net.prominic.groovyls.config.CompilationUnitFactory;
 
@@ -587,10 +592,10 @@ class GroovyServicesCompletionTests {
 		Position position = new Position(0, 0);
 		Either<List<CompletionItem>, CompletionList> result = services
 				.completion(new CompletionParams(textDocument, position)).get();
-		Assertions.assertTrue(result.isLeft());
-		List<CompletionItem> items = result.getLeft();
-		List<CompletionItem> filteredItems = items.stream()
-				.filter(item -> "from".equals(item.getLabel()) && CompletionItemKind.Function.equals(item.getKind()))
+		Assertions.assertTrue(result.isRight());
+		CompletionList items = result.getRight();
+		List<CompletionItem> filteredItems = items.getItems().stream()
+				.filter(item -> "from".equals(item.getLabel()))
 				.collect(Collectors.toList());
 		Assertions.assertEquals(1, filteredItems.size());
 	}

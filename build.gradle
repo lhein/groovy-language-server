@@ -32,6 +32,7 @@ dependencies {
   compile "org.codehaus.groovy:groovy-all:2.5.8"
   compile "com.google.code.gson:gson:2.8.2"
   compile "io.github.classgraph:classgraph:4.8.53"
+  compile "dev.jeka:jeka-core:0.8.10.RELEASE"
   testImplementation "org.junit.jupiter:junit-jupiter-api:5.5.2"
     testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:5.5.2"
 }
