@@ -30,7 +30,6 @@ import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionItemKind;
 import org.eclipse.lsp4j.CompletionList;
 import org.eclipse.lsp4j.CompletionParams;
-import org.eclipse.lsp4j.DidChangeConfigurationParams;
 import org.eclipse.lsp4j.DidOpenTextDocumentParams;
 import org.eclipse.lsp4j.MessageActionItem;
 import org.eclipse.lsp4j.MessageParams;
@@ -45,10 +44,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 
 import net.prominic.groovyls.config.CompilationUnitFactory;
 
@@ -594,8 +589,50 @@ class GroovyServicesCompletionTests {
 				.completion(new CompletionParams(textDocument, position)).get();
 		Assertions.assertTrue(result.isRight());
 		CompletionList items = result.getRight();
+		checkExpectedMethodIsAvailable(items, "from");
+		checkExpectedMethodIsAvailable(items, "rest");
+	}
+
+	private void checkExpectedMethodIsAvailable(CompletionList items, String expectedMethod) {
 		List<CompletionItem> filteredItems = items.getItems().stream()
-				.filter(item -> "from".equals(item.getLabel()))
+				.filter(item -> expectedMethod.equals(item.getLabel()) && CompletionItemKind.Method.equals(item.getKind()))
+				.collect(Collectors.toList());
+		Assertions.assertEquals(1, filteredItems.size());
+	}
+	
+	@Test
+	void testCompletionForCamelKWithFirstLevelClosure() throws Exception {
+		Path filePath = srcRoot.resolve("Completion.groovy");
+		String uri = filePath.toUri().toString();
+		TextDocumentItem textDocumentItem = new TextDocumentItem(uri, LANGUAGE_GROOVY, 1, "");
+		services.didOpen(new DidOpenTextDocumentParams(textDocumentItem));
+		TextDocumentIdentifier textDocument = new TextDocumentIdentifier(uri);
+		Position position = new Position(0, 0);
+		Either<List<CompletionItem>, CompletionList> result = services
+				.completion(new CompletionParams(textDocument, position)).get();
+		Assertions.assertTrue(result.isRight());
+		CompletionList items = result.getRight();
+		List<CompletionItem> filteredItems = items.getItems().stream()
+				.filter(item -> "beans".equals(item.getLabel()))
+				.collect(Collectors.toList());
+		Assertions.assertEquals(1, filteredItems.size());
+	}
+	
+	@Test
+	void testCompletionForCamelKWithSecondLevelClosure() throws Exception {
+		Path filePath = srcRoot.resolve("Completion.groovy");
+		String uri = filePath.toUri().toString();
+		TextDocumentItem textDocumentItem = new TextDocumentItem(uri, LANGUAGE_GROOVY, 1, "camel {\n"
+				+ "}");
+		services.didOpen(new DidOpenTextDocumentParams(textDocumentItem));
+		TextDocumentIdentifier textDocument = new TextDocumentIdentifier(uri);
+		Position position = new Position(1, 0);
+		Either<List<CompletionItem>, CompletionList> result = services
+				.completion(new CompletionParams(textDocument, position)).get();
+		Assertions.assertTrue(result.isLeft());
+		List<CompletionItem> items = result.getLeft();
+		List<CompletionItem> filteredItems = items.stream()
+				.filter(item -> "components".equals(item.getLabel()))
 				.collect(Collectors.toList());
 		Assertions.assertEquals(1, filteredItems.size());
 	}
