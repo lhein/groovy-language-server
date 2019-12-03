@@ -26,17 +26,24 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.codehaus.groovy.control.CompilerConfiguration;
 import org.codehaus.groovy.control.SourceUnit;
 import org.codehaus.groovy.control.customizers.ImportCustomizer;
 
+import dev.jeka.core.api.depmanagement.JkDependencyResolver;
+import dev.jeka.core.api.depmanagement.JkDependencySet;
+import dev.jeka.core.api.depmanagement.JkRepo;
 import groovy.lang.GroovyClassLoader;
 import net.prominic.groovyls.compiler.control.GroovyLSCompilationUnit;
 import net.prominic.groovyls.compiler.control.io.StringReaderSourceWithURI;
 import net.prominic.groovyls.util.FileContentsTracker;
+
+import static dev.jeka.core.api.depmanagement.JkJavaDepScopes.*;
 
 public class CompilationUnitFactory implements ICompilationUnitFactory {
 	private static final String FILE_EXTENSION_GROOVY = ".groovy";
@@ -106,8 +113,21 @@ public class CompilationUnitFactory implements ICompilationUnitFactory {
 
 	protected CompilerConfiguration getConfiguration() {
 		CompilerConfiguration config = new CompilerConfiguration();
-
-		List<String> classpathList = new ArrayList<>();
+		
+		/*retrieve the IntegrationCOnfiguration dependencies. This should be externalized in the future when going out of POC mode*/
+		JkDependencySet deps = JkDependencySet.of()
+                .and("org.apache.camel.k:camel-k-loader-groovy:1.0.7")
+                .and("org.apache.camel.k:camel-k-runtime-core:1.0.7")
+                .and("org.apache.camel:camel-core-engine:3.0.0-RC3")
+                .and("org.apache.camel:camel-log:3.0.0-RC3")
+                .and("org.apache.camel:camel-endpointdsl:3.0.0-RC3")
+                .and("org.apache.camel:camel-groovy:3.0.0-RC3")
+                .withDefaultScopes(COMPILE_AND_RUNTIME);
+        JkDependencyResolver resolver = JkDependencyResolver.of(JkRepo.ofMavenCentral());
+        List<String> libs = resolver.resolve(deps, RUNTIME).getFiles().getEntries()
+        		.stream().map(libPath -> libPath.toFile().getAbsolutePath()).collect(Collectors.toList());
+		
+		List<String> classpathList = new ArrayList<>(libs);
 		getClasspathList(classpathList);
 		config.setClasspathList(classpathList);
 

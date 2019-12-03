@@ -124,7 +124,7 @@ public class CompletionProvider {
 	}
 
 	private void delegateScriptContextToObject(ClassNode enclosingClass, List<CompletionItem> items, String className) {
-        if (enclosingClass.getSuperClass().getName().equals("groovy.lang.Script")) {
+        if ("groovy.lang.Script".equals(enclosingClass.getSuperClass().getName())) {
             populateItemsFromMethods(extractMethodsFromClass(className), "", items);
         }
     }
